@@ -58,7 +58,7 @@ while run:
             # Compter le nombre de doigts levés
             finger_count = count_fingers(hand_landmarks)
             
-            # Association simple de chaque nombre de doigts à un signe de langue des signes
+            # Ajout de plus de signes
             if finger_count == 0:
                 label = "✊ إشارة: A"
             elif finger_count == 1:
@@ -67,6 +67,10 @@ while run:
                 label = "✌️ إشارة: V"
             elif finger_count == 5:
                 label = "🖐️ إشارة: Salut"
+            elif finger_count == 4:
+                label = "🤚 إشارة: L"
+            elif finger_count == 3:
+                label = "✋ إشارة: T"
             else:
                 label = f"🤟 عدد أصابع: {finger_count}"
 
