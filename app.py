@@ -17,7 +17,7 @@ label_placeholder = st.empty()
 
 cap = cv2.VideoCapture(0)
 
-# Fonction améliorée pour analyser la main
+# Fonction pour détecter si la main est présente et donner des résultats
 def count_fingers(hand_landmarks):
     finger_tips = [8, 12, 16, 20]
     count = 0
@@ -28,14 +28,13 @@ def count_fingers(hand_landmarks):
 
 # Fonction pour déterminer les signes
 def detect_gesture(hand_landmarks):
-    # Les indices des points clés des doigts
     thumb_tip = hand_landmarks.landmark[4]
     index_tip = hand_landmarks.landmark[8]
     middle_tip = hand_landmarks.landmark[12]
     ring_tip = hand_landmarks.landmark[16]
     pinky_tip = hand_landmarks.landmark[20]
 
-    # Logique simple pour reconnaître les gestes
+    # Si la main n'est pas complètement ouverte ou bien positionnée, ne pas afficher "Salut"
     if index_tip.y < middle_tip.y < ring_tip.y < pinky_tip.y and thumb_tip.x < index_tip.x:
         return "👋 إشارة: Salut"
     elif index_tip.y < middle_tip.y and ring_tip.y > pinky_tip.y and thumb_tip.x < index_tip.x:
@@ -45,7 +44,7 @@ def detect_gesture(hand_landmarks):
     elif thumb_tip.y < index_tip.y and middle_tip.y < index_tip.y and ring_tip.y < index_tip.y and pinky_tip.y < index_tip.y:
         return "✊ إشارة: A"
     else:
-        return "🤟 إشارة غير معروفة"
+        return None  # Pas de signe reconnu
 
 while run:
     ret, frame = cap.read()
@@ -55,19 +54,25 @@ while run:
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     result = hands.process(rgb_frame)
 
-    label = "👋 لا يوجد يد"
+    label = "👋 لا يوجد يد"  # Message par défaut si aucune main n'est détectée
 
     if result.multi_hand_landmarks:
         for hand_landmarks in result.multi_hand_landmarks:
             mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
             gesture = detect_gesture(hand_landmarks)
-            label = gesture
+            
+            # Si aucun geste n'est reconnu, retourner un message d'erreur
+            if gesture is None:
+                label = "🤷‍♂️ إشارة غير معروفة"
+            else:
+                label = gesture
 
     label_placeholder.markdown(f"### {label}")
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame_placeholder.image(frame, channels="RGB")
 
 cap.release()
+
 
 
 
