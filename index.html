@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniSign - Langue des Signes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        header {
+            background-color: #2c3e50;
+            color: white;
+            width: 100%;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+
+        section {
+            margin: 20px;
+            text-align: center;
+        }
+
+        #camera-activation {
+            margin: 20px 0;
+        }
+
+        #video-display {
+            margin-top: 30px;
+        }
+
+        video {
+            border: 2px solid #ccc;
+            margin-top: 20px;
+        }
+
+        footer {
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        #label-placeholder {
+            margin-top: 10px;
+            font-size: 1.5em;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Bienvenue sur UniSign 🖐️</h1>
+        <p>Système de traduction des gestes en Langue des Signes</p>
+    </header>
+    
+    <section>
+        <h2>🖐️ UniSign - MVP</h2>
+        <p>Nous traduisons les gestes en Langue des Signes en temps réel.</p>
+        <p>Veillez à activer votre caméra pour tester le système.</p>
+        <div id="camera-activation">
+            <label for="camera-toggle">Activer la caméra:</label>
+            <input type="checkbox" id="camera-toggle">
+        </div>
+    </section>
+
+    <section id="video-display">
+        <h3>Vidéo en direct:</h3>
+        <video id="webcam" width="640" height="480" autoplay></video>
+        <div id="label-placeholder">
+            <p>Pas de main détectée...</p>
+        </div>
+    </section>
+
+    <footer>
+        <p>© 2025 UniSign - Un projet pour faciliter l'apprentissage de la Langue des Signes.</p>
+    </footer>
+
+    <script>
+        const cameraToggle = document.getElementById('camera-toggle');
+        const webcam = document.getElementById('webcam');
+        const labelPlaceholder = document.getElementById('label-placeholder');
+
+        let videoStream = null;
+
+        cameraToggle.addEventListener('change', async () => {
+            if (cameraToggle.checked) {
+                try {
+                    // Demande l'accès à la caméra
+                    videoStream = await navigator.mediaDevices.getUserMedia({
+                        video: true,
+                    });
+                    webcam.srcObject = videoStream;
+                } catch (error) {
+                    console.error("Erreur lors de l'accès à la caméra", error);
+                    labelPlaceholder.innerHTML = "Impossible d'activer la caméra.";
+                }
+            } else {
+                if (videoStream) {
+                    const tracks = videoStream.getTracks();
+                    tracks.forEach(track => track.stop());
+                }
+                webcam.srcObject = null;
+                labelPlaceholder.innerHTML = "Caméra désactivée.";
+            }
+        });
+    </script>
+
+    <!-- Le code Streamlit pour le backend -->
+    <script type="module">
+        import streamlit from "https://cdn.jsdelivr.net/npm/streamlit-component-lib@0.1.0/dist/streamlit-component-lib.js";
+        
+        const st = streamlit.create();
+        
+        st.title("🖐️ UniSign - MVP");
+        st.write("نظام ترجمة بسيط للإشارات بلغة الإشارة");
+
+        const mp_hands = mp.solutions.hands;
+        const hands = new mp_hands.Hands({ max_num_hands: 1 });
+        const mp_draw = mp.solutions.drawing_utils;
+
+        const run = st.checkbox('تشغيل الكاميرا');
+
+        const frame_placeholder = st.empty();
+        const label_placeholder = st.empty();
+
+        const cap = new cv2.VideoCapture(0);
+
+        // نموذج بسيط جدا: التعرف على عدد الأصابع المرفوعة فقط
+        function count_fingers(hand_landmarks) {
+            const finger_tips = [8, 12, 16, 20];
+            let count = 0;
+            for (const tip of finger_tips) {
+                if (hand_landmarks.landmark[tip].y < hand_landmarks.landmark[tip - 2].y) {
+                    count += 1;
+                }
+            }
+            return count;
+        }
+
+        while (run) {
+            const ret, frame = cap.read();
+            if (!ret) break;
+            const rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB);
+            const result = hands.process(rgb_frame);
+
+            let label = "👋 لا يوجد يد";
+
+            if (result.multi_hand_landmarks) {
+                for (const hand_landmarks of result.multi_hand_landmarks) {
+                    mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS);
+                    const finger_count = count_fingers(hand_landmarks);
+                    if (finger_count === 0) {
+                        label = "✊ إشارة: A";
+                    } else if (finger_count === 1) {
+                        label = "☝️ إشارة: D";
+                    } else if (finger_count === 2) {
+                        label = "✌️ إشارة: V";
+                    } else if (finger_count === 5) {
+                        label = "🖐️ إشارة: Salut";
+                    } else {
+                        label = `🤟 عدد أصابع: ${finger_count}`;
+                    }
+                }
+            }
+
+            label_placeholder.markdown(`### ${label}`);
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB);
+            frame_placeholder.image(frame, { channels: "RGB" });
+        }
+
+        cap.release();
+    </script>
+</body>
+</html>
