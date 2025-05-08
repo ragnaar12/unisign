@@ -2,8 +2,6 @@ import streamlit as st
 import mediapipe as mp
 import cv2
 import numpy as np
-from io import BytesIO
-from PIL import Image
 
 # Initialiser les objets de Mediapipe
 mp_hands = mp.solutions.hands
@@ -18,11 +16,19 @@ video_file = st.file_uploader("Télécharger une vidéo", type=["mp4", "avi", "m
 
 # Fonction pour compter les doigts levés
 def count_fingers(hand_landmarks):
-    finger_tips = [8, 12, 16, 20]  # Index des points des doigts
+    # L'index des points de chaque doigt, en fonction de l'index de Mediapipe
+    # 0: base de la paume, 4: petit doigt, 8: index, etc.
+    # On vérifie si les doigts sont au-dessus de la paume (doigt levé)
+    
+    # Doigts à vérifier : [1, 2, 3, 4] (généralement les bouts des doigts)
+    finger_tips = [8, 12, 16, 20]
     count = 0
+    
     for tip in finger_tips:
-        if hand_landmarks.landmark[tip].y < hand_landmarks.landmark[tip - 2].y:  # Vérification si le doigt est levé
+        # Si la position du bout du doigt est plus haute que le bas du doigt, il est levé
+        if hand_landmarks.landmark[tip].y < hand_landmarks.landmark[tip - 2].y:
             count += 1
+
     return count
 
 # Traitement de la vidéo téléchargée
@@ -45,6 +51,8 @@ if video_file:
         if result.multi_hand_landmarks:
             for hand_landmarks in result.multi_hand_landmarks:
                 mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+                
+                # Compte des doigts levés
                 finger_count = count_fingers(hand_landmarks)
                 
                 # Logique des gestes
