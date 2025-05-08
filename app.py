@@ -66,3 +66,4 @@ if video_file:
         st.image(frame, channels="RGB")
 
     video_cap.release()
+
