@@ -1,86 +1,75 @@
-import streamlit as st
-import mediapipe as mp
 import cv2
-import requests
+import mediapipe as mp
 import numpy as np
 
-# Initialisation de Streamlit
-st.title("🖐️ UniSign - MVP")
-st.write("نظام ترجمة بسيط للإشارات بلغة الإشارة")
-
-# Initialisation de Mediapipe pour la détection des mains
+# Initialiser MediaPipe Hands
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(max_num_hands=1)
 mp_draw = mp.solutions.drawing_utils
 
-run = st.checkbox('تشغيل الكاميرا')
+# Définir la fonction pour compter les doigts levés
+def count_fingers(hand_landmarks):
+    # Liste des indices des points de repère pour chaque doigt (tips des doigts)
+    finger_tips = [8, 12, 16, 20]  # 8: Index, 12: Middle, 16: Ring, 20: Pinky
+    count = 0
+    for tip in finger_tips:
+        # Si le point de repère est plus haut que le point précédant dans le sens Y, alors le doigt est levé
+        if hand_landmarks.landmark[tip].y < hand_landmarks.landmark[tip - 2].y:
+            count += 1
+    return count
 
-frame_placeholder = st.empty()
-label_placeholder = st.empty()
-
+# Capture vidéo depuis la caméra
 cap = cv2.VideoCapture(0)
 
-# Fonction pour envoyer l'image à DeepAI pour l'analyse
-def analyze_image_with_deepai(frame):
-    # Convertir l'image en format approprié pour DeepAI
-    _, img_encoded = cv2.imencode('.jpg', frame)
-    img_bytes = img_encoded.tobytes()
-
-    # Clé API DeepAI (remplace avec la tienne)
-    api_key = 'YOUR_DEEP_AI_API_KEY'
-
-    # URL de l'API DeepAI
-    api_url = 'https://api.deepai.org/api/image-recognition'
-
-    headers = {
-        'api-key': api_key
-    }
-
-    # Envoi de l'image à DeepAI
-    response = requests.post(api_url, headers=headers, files={'image': img_bytes})
-
-    if response.status_code == 200:
-        result = response.json()
-        return result
-    else:
-        return None
-
-# Fonction pour interpréter les résultats de l'API
-def interpret_result(result):
-    if result:
-        # Par exemple, si DeepAI renvoie des étiquettes de la reconnaissance d'image
-        labels = result.get('output', {}).get('labels', [])
-        if labels:
-            return f"📜 Signification: {', '.join(labels)}"
-        else:
-            return "🤷‍♂️ Aucune signification trouvée"
-    else:
-        return "🤷‍♂️ Erreur lors de l'analyse"
-
-# Détection et interprétation des gestes
-while run:
+while True:
     ret, frame = cap.read()
     if not ret:
         break
+
+    # Inverser l'image pour la vision miroir
     frame = cv2.flip(frame, 1)
+
+    # Convertir l'image de BGR (OpenCV) en RGB (MediaPipe)
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    # Processus de la détection des mains avec MediaPipe
     result = hands.process(rgb_frame)
 
-    label = "👋 لا يوجد يد"  # Message par défaut si aucune main n'est détectée
-
+    # Vérifier si des mains ont été détectées
     if result.multi_hand_landmarks:
         for hand_landmarks in result.multi_hand_landmarks:
+            # Dessiner les points de repère de la main
             mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
-            # Envoi de l'image pour analyse avec DeepAI
-            deepai_result = analyze_image_with_deepai(frame)
-            label = interpret_result(deepai_result)
+            # Compter les doigts levés
+            finger_count = count_fingers(hand_landmarks)
 
-    label_placeholder.markdown(f"### {label}")
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame_placeholder.image(frame, channels="RGB")
+            # Affichage des résultats sur l'écran
+            if finger_count == 0:
+                label = "✊ Signification: A"
+            elif finger_count == 1:
+                label = "☝️ Signification: D"
+            elif finger_count == 2:
+                label = "✌️ Signification: V"
+            elif finger_count == 5:
+                label = "🖐️ Signification: Salut"
+            else:
+                label = f"🤟 Nombre de doigts levés: {finger_count}"
 
+            # Afficher le label sur l'image
+            cv2.putText(frame, label, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
+    # Afficher l'image avec les résultats
+    cv2.imshow("Main Détectée", frame)
+
+    # Quitter si l'utilisateur appuie sur la touche 'q'
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Libérer les ressources
 cap.release()
+cv2.destroyAllWindows()
+
 
 
 
